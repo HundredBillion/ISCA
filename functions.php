@@ -250,8 +250,7 @@ add_action('add_meta_boxes', 'wpse_add_custom_meta_box_2');
 
 
 function show_custom_meta_box_2() {
-		global $post;
-		global $wpdb;
+    global $post;
     // Use nonce for verification to secure data sending
     wp_nonce_field( basename( __FILE__ ), 'wpse_our_nonce' );
 	$usedornot  = get_post_meta( get_the_ID(), 'usage', true );
@@ -271,8 +270,7 @@ function show_custom_meta_box_2() {
 		$State = get_post_meta( get_the_ID(), 'State', true );
 		$Zip = get_post_meta( get_the_ID(), 'Zip', true );
 		$phone = get_post_meta( get_the_ID(), 'phone', true );
-		// $confirmation_number = get_post_meta( get_the_ID(), 'confirmation_number', true );
-		$confirmation_number = ($wpdb->get_var("SELECT META_ID FROM $wpdb->postmeta  WHERE meta_value = 'used' "));
+		$confirmation_number = get_post_meta( get_the_ID(), 'confirmation_number', true );
 		$Product_description = get_post_meta( get_the_ID(), 'Product_description', true );
 		$Product_sku = get_post_meta( get_the_ID(), 'Product_sku', true );
 		$Order_date = get_post_meta( get_the_ID(), 'Order_date', true );
@@ -365,10 +363,50 @@ function wpse_save_meta_fields( $post_id ) {
 	}
 	$wpse_value = $_POST['usage'];
 	update_post_meta( $post_id, 'usage', $wpse_value );
+	if ( 'coupon' == $_POST['post_type'] ) 
+	{
+		$couponposts = get_posts( array(
+			'post_type' => 'coupon',
+			'meta_query' => array(
+			array(
+				'key'   => 'usage',
+				'value' => 'used',
+				 )
+			),
+			'order' => 'ASC',
+			'post_status' => 'publish',
+			'numberposts' => -1,
+			) );
+			if ( $couponposts ) 
+			{
+				$sequential=0;
+				foreach ( $couponposts as $coupon ) :
+				$sequential++;
+				update_post_meta( $coupon->ID, 'confirmation_number', $sequential );
+				endforeach; 
+			}
+	}
 }
 add_action( 'save_post', 'wpse_save_meta_fields' );
 add_action( 'new_to_publish', 'wpse_save_meta_fields' );
 
+
+
+
+/*show form in single product page*/
+// function prod_form(){
+// 	$page_id = get_the_ID();
+// 	if($page_id===10807 ){
+// 		echo do_shortcode('[contact-form-7 id="11742" title="StrengthKit1"]');
+// 	}elseif($page_id===10812 ){
+// 		echo do_shortcode('[contact-form-7 id="33929" title="StrengthKit2"]');
+// 	}elseif($page_id===11279 ){
+// 		echo do_shortcode('[contact-form-7 id="33930" title="StrengthKit3"]');
+// 	}else{
+// 		echo do_shortcode('[contact-form-7 id="33931" title="StrengthKit4"]');
+// 	}
+// }
+// add_action( 'woocommerce_after_single_product', 'prod_form', 10 );
 
 /*chnge coupon meta value used or not*/
 add_action( 'wpcf7_before_send_mail', 'mycustom_wp_footer' );
@@ -382,8 +420,27 @@ function mycustom_wp_footer() {
 				update_post_meta( $coupon_id, 'usage', 'used' );
 			}
 		}
+		$couponposts = get_posts( array(
+		'post_type' => 'coupon',
+		'meta_query' => array(
+		array(
+			'key'   => 'usage',
+			'value' => 'used',
+			 )
+		),
+		'order' => 'ASC',
+		'post_status' => 'publish',
+		'numberposts' => -1,
+		) );
+		if ( $couponposts ) 
+		{
+			$sequential=0;
+			foreach ( $couponposts as $coupon ) :
+			$sequential++;
+			update_post_meta( $coupon->ID, 'confirmation_number', $sequential );
+			endforeach; 
+		}
 		update_post_meta( $coupon_id, 'Order_date', $_POST['OrderDate'] );
-		update_post_meta( $coupon_id, 'confirmation_number', $_POST['Confirmation'] );
 		update_post_meta( $coupon_id, 'Product_description', $_POST['ProductDescription'] );
 		update_post_meta( $coupon_id, 'Product_sku', $_POST['ProductSKU'] );
 		update_post_meta( $coupon_id, 'first_name', $_POST['FirstName'] );
@@ -467,7 +524,7 @@ function redirect_order_date() {
 			today = mm + '/' + dd + '/' + yyyy;
 			document.getElementById('order-date').value=today;
 			
-			// document.getElementById('confirmation-number').value = <?//php echo $confirmation_number ?> + 9000;
+			document.getElementById('confirmation-number').value = <?php echo $confirmation_number ?> + 9000;
     </script>
     <?php
   }
