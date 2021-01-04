@@ -362,8 +362,11 @@ function wpse_save_meta_fields( $post_id ) {
 		return 'cannot edit post';
 	}
 	$wpse_value = $_POST['usage'];
-	update_post_meta( $post_id, 'usage', $wpse_value );
-	if ( 'coupon' == $_POST['post_type'] ) 
+	if('coupon' == $_POST['post_type'] && $wpse_value=='unused')
+	{
+		delete_post_meta($post_id, 'confirmation_number');
+	}
+	if ( 'coupon' == $_POST['post_type'] && $wpse_value=='used' && !get_post_meta( $post_id, 'confirmation_number', true ) ) 
 	{
 		$couponposts = get_posts( array(
 			'post_type' => 'coupon',
@@ -379,13 +382,11 @@ function wpse_save_meta_fields( $post_id ) {
 			) );
 			if ( $couponposts ) 
 			{
-				$sequential=0;
-				foreach ( $couponposts as $coupon ) :
-				$sequential++;
-				update_post_meta( $coupon->ID, 'confirmation_number', $sequential );
-				endforeach; 
+				$sequential=count($couponposts)+1;
+				update_post_meta( $post_id, 'confirmation_number', $sequential );
 			}
 	}
+	update_post_meta( $post_id, 'usage', $wpse_value );
 }
 add_action( 'save_post', 'wpse_save_meta_fields' );
 add_action( 'new_to_publish', 'wpse_save_meta_fields' );
@@ -417,28 +418,25 @@ function mycustom_wp_footer() {
 			$coupon_id = get_post_id(strtolower($_POST['coupon']),'coupon');
 			$status = get_post_meta( $coupon_id, 'usage', true );
 			if($status=='unused'){
+				$couponposts = get_posts( array(
+				'post_type' => 'coupon',
+				'meta_query' => array(
+				array(
+					'key'   => 'usage',
+					'value' => 'used',
+					 )
+				),
+				'order' => 'ASC',
+				'post_status' => 'publish',
+				'numberposts' => -1,
+				) );
+				if ( $couponposts ) 
+				{
+					$sequential=count($couponposts)+1;
+					update_post_meta( $coupon_id, 'confirmation_number', $sequential );
+				}
 				update_post_meta( $coupon_id, 'usage', 'used' );
 			}
-		}
-		$couponposts = get_posts( array(
-		'post_type' => 'coupon',
-		'meta_query' => array(
-		array(
-			'key'   => 'usage',
-			'value' => 'used',
-			 )
-		),
-		'order' => 'ASC',
-		'post_status' => 'publish',
-		'numberposts' => -1,
-		) );
-		if ( $couponposts ) 
-		{
-			$sequential=0;
-			foreach ( $couponposts as $coupon ) :
-			$sequential++;
-			update_post_meta( $coupon->ID, 'confirmation_number', $sequential );
-			endforeach; 
 		}
 		update_post_meta( $coupon_id, 'Order_date', $_POST['OrderDate'] );
 		update_post_meta( $coupon_id, 'Product_description', $_POST['ProductDescription'] );
@@ -524,7 +522,7 @@ function redirect_order_date() {
 			today = mm + '/' + dd + '/' + yyyy;
 			document.getElementById('order-date').value=today;
 			
-			document.getElementById('confirmation-number').value = <?php echo $confirmation_number ?> + 9000;
+			//document.getElementById('confirmation-number').value = <?php echo $confirmation_number ?> + 9000;
     </script>
     <?php
   }
